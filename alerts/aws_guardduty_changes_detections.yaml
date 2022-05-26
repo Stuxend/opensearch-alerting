@@ -1,0 +1,48 @@
+- name: 'AWS GuardDuty configuration change'
+  type: 'monitor'
+  schedule:
+    period:
+      interval: 5
+      unit: MINUTES
+  enabled: true
+  inputs:
+    - search:
+        indices:
+          - guardduty-*
+        query:
+          size: 50
+          query:
+            bool: 
+              must:
+                - query_string:
+                    query: 'eventName:CreateFilter OR eventName:CreateIPSet OR eventName:CreateSampleFindings OR eventName:CreateThreatIntelSet OR eventName:DeleteDetector OR eventName:DeleteMembers OR eventName:DeletePublishingDestination OR eventName:DeleteThreatIntelSet OR eventName:DisassociateFromMasterAccount OR eventName:DisassociateMembers OR eventName:StopMonitoringMembers OR eventName:UpdateDetector OR eventName:UpdateFilter OR eventName:UpdateIPSet OR eventName:UpdatePublishingDestination OR eventName:UpdateThreatIntelSet'
+              filter:
+                - range:
+                    '@timestamp':
+                      gte: 'now-60m/m'
+                      lte: 'now-5m/m'
+                      format: 'strict_date_optional_time'
+  triggers:
+    - name: 'default_for_each_event'
+      severity: '3'
+      condition: 
+        script:
+          source: |
+            ctx.results[0].hits.total.value > 0
+          lang: painless
+      actions:
+        - name: gd_default_action
+          destination_id: ###################
+          subject_template:
+            source: 'AWS GuardDuty configuration change'
+          message_template: 
+            source: |
+              A AWS GuardDuty configuration was change, check the guardduty config and investigate this event.
+              *event information detail* :
+                - *Username:* `{{ctx.results.0.hits.hits.0._source.user.id}}`
+                - *Event ID:* `{{ctx.results.0.hits.hits.0._id}}`
+                - *Action:* `{{ctx.results.0.hits.hits.0._source.eventName}}`
+          throttle_enabled: true
+          throttle:
+            value: 27
+            unit: MINUTES

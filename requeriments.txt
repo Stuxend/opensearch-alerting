@@ -1,0 +1,6 @@
+ruamel.yaml
+argparse
+requests
+requests_aws4auth
+urllib3
+boto3

@@ -1,0 +1,47 @@
+- name: 'AWS AdministratorAccess role attached to a user'
+  type: 'monitor'
+  schedule:
+    period:
+      interval: 5
+      unit: MINUTES
+  enabled: true
+  inputs:
+    - search:
+        indices:
+          - aws-*
+        query:
+          size: 50
+          query:
+            bool: 
+              must:
+                - query_string:
+                    query: 'eventName:AttachUserPolicy AND requestParameters.policyArn:*Administrator*'
+              filter:
+                - range:
+                    '@timestamp':
+                      gte: 'now-60m/m'
+                      lte: 'now-5m/m'
+                      format: 'strict_date_optional_time'
+  triggers:
+    - name: 'default_for_each_event'
+      severity: '3'
+      condition: 
+        script:
+          source: |
+            ctx.results[0].hits.total.value > 0
+          lang: painless
+      actions:
+        - name: administratoraccess_attach_action
+          destination_id: ###################
+          subject_template:
+            source: 'AWS AdministratorAccess role attached to a user'
+          message_template: 
+            source: |
+              *event information detail* :
+                - *Username:* `{{ctx.results.0.hits.hits.0._source.user.id}}`
+                - *Event ID:* `{{ctx.results.0.hits.hits.0._id}}`
+                - *Action:* `{{ctx.results.0.hits.hits.0._source.eventName}}`
+          throttle_enabled: true
+          throttle:
+            value: 27
+            unit: MINUTES

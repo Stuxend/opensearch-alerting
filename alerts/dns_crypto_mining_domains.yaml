@@ -1,0 +1,48 @@
+- name: 'Any contact to crypto mining domains'
+  type: 'monitor'
+  schedule:
+    period:
+      interval: 5
+      unit: MINUTES
+  enabled: true
+  inputs:
+    - search:
+        indices:
+          - route53query-*
+        query:
+          size: 50
+          query:
+            bool: 
+              must:
+                - query_string:
+                    query: query_name:(*asia1.ethpool.org* OR *ca.minexmr.com* OR *cn.stratum.slushpool.com* OR *de.minexmr.com* OR *eth-ar.dwarfpool.com* OR *eth-asia.dwarfpool.com* OR *eth-asia1.nanopool.org* OR *eth-au.dwarfpool.com* OR *eth-au1.nanopool.org* OR *eth-br.dwarfpool.com* OR *eth-cn.dwarfpool.com* OR *eth-cn2.dwarfpool.com* OR *eth-eu.dwarfpool.com* OR *eth-eu1.nanopool.org* OR *eth-eu2.nanopool.org* OR *eth-hk.dwarfpool.com* OR *eth-jp1.nanopool.org* OR *eth-ru.dwarfpool.com* OR *eth-ru2.dwarfpool.com* OR *eth-sg.dwarfpool.com* OR *eth-us-east1.nanopool.org* OR *eth-us-west1.nanopool.org* OR *eth-us.dwarfpool.com* OR *eth-us2.dwarfpool.com* OR *eu.stratum.slushpool.com* OR *eu1.ethermine.org* OR *eu1.ethpool.org* OR *fr.minexmr.com* OR *mine.moneropool.com* OR *mine.xmrpool.net* OR *pool.minexmr.com* OR *pool.monero.hashvault.pro* OR *pool.supportxmr.com* OR *sg.minexmr.com* OR *sg.stratum.slushpool.com* OR *stratum-eth.antpool.com* OR *stratum-ltc.antpool.com* OR *stratum-zec.antpool.com* OR *stratum.antpool.com* OR *us-east.stratum.slushpool.com* OR *us1.ethermine.org* OR *us1.ethpool.org* OR *us2.ethermine.org* OR *us2.ethpool.org* OR *xmr-asia1.nanopool.org* OR *xmr-au1.nanopool.org* OR *xmr-eu1.nanopool.org* OR *xmr-eu2.nanopool.org* OR *xmr-jp1.nanopool.org* OR *xmr-us-east1.nanopool.org* OR *xmr-us-west1.nanopool.org* OR *xmr.crypto-pool.fr* OR *xmr.pool.minergate.com* OR  *rx.unmineable.com* OR *ss.antpool.com* OR *dash.antpool.com* OR *eth.antpool.com* OR *zec.antpool.com* OR *xmc.antpool.com* OR *btm.antpool.com* OR *stratum-dash.antpool.com* OR *stratum-xmc.antpool.com* OR *stratum-btm.antpool.com*)
+              filter:
+                - range:
+                    '@timestamp':
+                      gte: 'now-60m/m'
+                      lte: 'now-5m/m'
+                      format: 'strict_date_optional_time'
+  triggers:
+    - name: 'default_for_each_event'
+      severity: '3'
+      condition: 
+        script:
+          source: |
+            ctx.results[0].hits.total.value > 0
+          lang: painless
+      actions:
+        - name: dns_crypto_contact_action
+          destination_id: ###################
+          subject_template:
+            source: 'Any contact to crypto mining domains'
+          message_template: 
+            source: |
+              *event information detail* :
+                - *Instance ID:* `{{ctx.results.0.hits.hits.0._source.srcids.instance}}`
+                - *DNS Query:* `{{ctx.results.0.hits.hits.0._source.query_name}}`
+                - *AWS account ID:* `{{ctx.results.0.hits.hits.0._source.account_id}}`
+                - *Event ID:* `{{ctx.results.0.hits.hits.0._id}}`
+          throttle_enabled: true
+          throttle:
+            value: 60
+            unit: MINUTES

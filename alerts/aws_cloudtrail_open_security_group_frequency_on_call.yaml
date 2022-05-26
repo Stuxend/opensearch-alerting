@@ -1,0 +1,49 @@
+- name: 'AWS open security group ingress authorization'
+  type: 'monitor'
+  schedule:
+    period:
+      interval: 5
+      unit: MINUTES
+  enabled: true
+  inputs:
+    - search:
+        indices:
+          - aws-*
+        query:
+          size: 50
+          query:
+            bool: 
+              must:
+                - query_string:
+                    query: "(event.provider:ec2.amazonaws.com AND eventName:AuthorizeSecurityGroupIngress AND requestParameters.ipPermissions.items.ipRanges.items.cidrIp:'0.0.0.0')"
+              filter:
+                - range:
+                    '@timestamp':
+                      gte: 'now-60m/m'
+                      lte: 'now-5m/m'
+                      format: 'strict_date_optional_time'
+  triggers:
+    - name: 'default_for_each_event'
+      severity: '3'
+      condition: 
+        script:
+          source: |
+            ctx.results[0].hits.total.value > 0
+          lang: painless
+      actions:
+        - name: open_security_group_action
+          destination_id: ###################
+          subject_template:
+            source: 'AWS open security group ingress authorization'
+          message_template: 
+            source: |
+              *event information detail* :
+                - *Username:* `{{ctx.results.0.hits.hits.0._source.user.id}}`
+                {{#ctx.results.0.hits.hits.0._source.requestParameters.groupId}}
+                - *SecurityGroup ID:* `{{ctx.results.0.hits.hits.0._source.requestParameters.groupId}}`
+                {{/ctx.results.0.hits.hits.0._source.requestParameters.groupId}}
+                - *Event ID:* `{{ctx.results.0.hits.hits.0._id}}`
+          throttle_enabled: true
+          throttle:
+            value: 27
+            unit: MINUTES

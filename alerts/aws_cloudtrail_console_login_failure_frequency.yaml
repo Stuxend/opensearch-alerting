@@ -1,0 +1,48 @@
+- name: 'Too many AWS Console logins detected'
+  type: 'monitor'
+  schedule:
+    period:
+      interval: 5
+      unit: MINUTES
+  enabled: true
+  inputs:
+    - search:
+        indices:
+          - aws-*
+        query:
+          size: 50
+          query:
+            bool: 
+              must:
+                - query_string:
+                    query: 'eventName:ConsoleLogin AND responseElements.ConsoleLogin:Failure'
+              filter:
+                - range:
+                    '@timestamp':
+                      gte: 'now-10m/m'
+                      lte: 'now-5m/m'
+                      format: 'strict_date_optional_time'
+  triggers:
+    - name: 'default_for_each_event'
+      severity: '3'
+      condition: 
+        script:
+          source: |
+            ctx.results[0].hits.total.value > 10
+          lang: painless
+      actions:
+        - name: multiple_console_fails_action
+          destination_id: ###################
+          subject_template:
+            source: 'Too many AWS Console logins detected'
+          message_template: 
+            source: |
+              *more than 10 failed authentication attempts (AWS Console) in a 5-minutes* :
+                - *Username:* `{{ctx.results.0.hits.hits.0._source.user.id}}`
+                - *Event ID:* `{{ctx.results.0.hits.hits.0._id}}`
+                - *UserAgent:* `{{ctx.results.0.hits.hits.0._source.user_agent}}`
+                - *Action:* `{{ctx.results.0.hits.hits.0._source.eventName}}`
+          throttle_enabled: true
+          throttle:
+            value: 10
+            unit: MINUTES

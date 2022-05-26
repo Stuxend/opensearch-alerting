@@ -1,5 +1,5 @@
 # opensearch-alerting
-yes, this is another alert repository for opensearch-alerting. But here you will not only find use cases that can help you enhance your security posture, but I also make public a set of scripts that can be used to build an alert pipeline, using the power of CI/CD, python and the opendistro API. You will be able to manage your alerts (or at least something like that) from git.
+yes, this is another alert repository for opensearch-alerting. But here you will not only find use cases that can help you enhance your security posture, but I also make public a set of scripts that can be used to build an alert pipeline, using the power of CI/CD, python and the opendistro API. You will be able to manage your alerts (or at least something like that) from git. PR/ISSUES are welome!
 
 #### HOW PIPELINE WORKS?
 <div class="center">
@@ -68,6 +68,84 @@ This example shows how create a basic match alert with a lucene query. For advan
 ```
 
 3. push the change into the repo and review the pipeline status. (The yaml run some lint before pushing the changes to the opensearch API so you maybe want to run it locally first using python yamllint)
+
+#### CI/CD Examples:
+
+GITLAB RUNNER:
+
+```
+variables:
+  ELK_DOMAIN: "https://YOURSIEMURL/"
+  ARN_ROLE: "YOURROLEARNTORUNTHIS"
+
+stages:
+  - lint
+  - deploy
+
+lint:
+  image: python:3.9
+  stage: lint
+  script:
+    - pip install yamllint
+    - yamllint -c ./config_yamllint ./alerts/*.yaml
+
+deploy:
+  image: python:3.9
+  stage: deploy
+  script:
+    - pip install --upgrade pip
+    - pip install -r requeriments.txt
+    - python main.py -k ${ELK_DOMAIN} -a pipeline
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+
+```
+
+
+GITHUB ACTIONS: 
+```
+
+name: toOpenSearch
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+variables:
+  ELK_DOMAIN: "https://YOURSIEMURL/"
+  ARN_ROLE: "YOURROLEARNTORUNTHIS"
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9"]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yamllint
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Lint with yamllint
+        run: |
+          yamllint -c ./config_yamllint ./alerts/*.yaml
+      - name: Deploy
+        run: |
+          python main.py -k ${ELK_DOMAIN} -a pipeline
+
+```
+
 
 #### TO BE CONSIDERED
 

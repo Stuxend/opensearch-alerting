@@ -1,0 +1,41 @@
+- name: 'Flatline alert for aws indices'
+  type: 'monitor'
+  schedule:
+    period:
+      interval: 1
+      unit: DAYS
+  enabled: true
+  inputs:
+    - search:
+        indices:
+          - aws-*
+        query:
+          size: 0
+          query:
+            bool: 
+              filter:
+                - range:
+                    '@timestamp':
+                      gte: 'now-1d/d'
+                      lte: 'now'
+                      format: 'epoch_millis'
+  triggers:
+    - name: 'default_for_flatline_detection'
+      severity: '1'
+      condition: 
+        script:
+          source: ctx.results[0].hits.total.value < 5 
+          lang: painless
+      actions:
+        - name: flatline_slack_action
+          destination_id: ###################
+          subject_template:
+            source: 'Flatine logs in aws index.'
+          message_template: 
+            source: |
+              There is a potential issue with indexing or forwarding logs.
+              Not logs found in the last {{ctx.monitor.schedule.period.interval}}{{ctx.monitor.schedule.period.unit}} for `*aws*`
+          throttle_enabled: true
+          throttle:
+            value: 30
+            unit: MINUTES
