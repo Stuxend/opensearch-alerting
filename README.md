@@ -149,6 +149,6 @@ jobs:
 
 #### TO BE CONSIDERED
 
-- If you want to try something new, I strongly recommend to it over the GUI and then move fw with the pipeline.
+- If you want to try something new, I strongly recommend to go over the GUI and then move fw with the pipeline.
 - the alerts that are manually created are not sync or managed by this pipeline.
 - the destinations must be created before the creation of the alert and its a manual creation over the GUI.
